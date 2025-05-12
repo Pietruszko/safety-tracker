@@ -30,9 +30,6 @@ DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost'])
 
-# Use custom user model instead of default one
-AUTH_USER_MODEL = 'users.User'
-
 # Application definition
 
 INSTALLED_APPS = [
