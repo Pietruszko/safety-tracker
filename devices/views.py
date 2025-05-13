@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,3 +16,17 @@ class DeviceViewSet(viewsets.ModelViewSet):
             serializer.save(device=device)
             return Response({'detail': 'Device assigned successfully.'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='location')
+    def location(self, request, pk=None):
+        device = self.get_object()
+
+        data = request.data.copy()
+        data['device'] = device.id
+
+        serializer = LocationPingSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
