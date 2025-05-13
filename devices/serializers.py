@@ -31,15 +31,13 @@ class AssignDeviceSerializer(serializers.Serializer):
         # Check if user has any active devices
         if Device.objects.filter(assigned_user=user, is_active=True).exists():
             raise serializers.ValidationError("User can have only one active SOS device.")
+        
+        data['user'] = user
         return data
     
-    def save(self, **kwargs):
-        device = self.context['device']
-        user = get_object_or_404(User, id=self.validated_data['user_id'])
-
+    def save(self, device):
         # Unassign device from previous user (if any)
-        device.assigned_user = user
+        device.assigned_user = self.validated_data['user']
         device.is_active = True
         device.save()
-
         return device
