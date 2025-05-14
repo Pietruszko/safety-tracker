@@ -148,3 +148,47 @@ class TestDeviceLocation:
         url = reverse('device-location', args=[inactive_device.id])
         response = api_client.post(url, payload, format='json')
         assert response.status_code == 400
+
+@pytest.fixture
+def location_ping_1(active_device):
+    return LocationPing.objects.create(
+        device=active_device,
+        latitude=50.123,
+        longitude=19.456,
+        ping_time="2025-04-22T10:15:00Z"
+    )
+
+@pytest.fixture
+def location_ping_2(active_device):
+    return LocationPing.objects.create(
+        device=active_device,
+        latitude=51.123,
+        longitude=20.456,
+        ping_time="2025-04-22T10:20:00Z"
+    )
+
+@pytest.mark.django_db
+class TestMapView:
+    def test_empty_map_with_no_devices(self, api_client):
+        """Test empty response when no devices are assigned."""
+        url = reverse('map-view')
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.data == []
+
+    def test_map_with_one_active_device(self, api_client, user_danny, active_device, location_ping_1, location_ping_2):
+        """Test map response with one active device and two pings so it needs to choose latest one."""
+        url = reverse('map-view')
+        response = api_client.get(url)
+        
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0] == {
+            "user": {"id": user_danny.id, "name": f"{user_danny.first_name} {user_danny.last_name}"},
+            "device_id": "device_003",
+            "latitude": 51.123,
+            "longitude": 20.456,
+            "timestamp": "2025-04-22T10:20:00Z"
+        }
+
+    
