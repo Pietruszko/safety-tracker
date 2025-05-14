@@ -1,8 +1,8 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Device
-from .serializers import DeviceSerializer, AssignDeviceSerializer, LocationPingSerializer
+from .serializers import DeviceSerializer, AssignDeviceSerializer, LocationPingSerializer, MapSerializer
 
 class DeviceViewSet(viewsets.ModelViewSet):
     queryset = Device.objects.all()
@@ -29,4 +29,19 @@ class DeviceViewSet(viewsets.ModelViewSet):
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class MapView(generics.ListAPIView):
+    serializer_class = MapSerializer
+
+    def get_queryset(self):
+        active_devices = Device.objects.filter(
+            is_active=True,
+            assigned_user__isnull=False
+        ).select_related('assigned_user')
+        
+        return active_devices
+        
+    
+
+
         
