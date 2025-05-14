@@ -17,12 +17,18 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from devices.views import DeviceViewSet
+from devices.views import DeviceViewSet, MapView
+from users.views import UserViewSet
 
-router = DefaultRouter()
-router.register(r'devices', DeviceViewSet, basename='device')
+devices_router = DefaultRouter()
+devices_router.register(r'devices', DeviceViewSet, basename='device')
+
+users_router = DefaultRouter()
+users_router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include(router.urls)),
+    path('', include(devices_router.urls)),
+    path('', include(users_router.urls)),
+    path('map/', MapView.as_view(), name='map-view'),
 ]
