@@ -41,3 +41,34 @@ class AssignDeviceSerializer(serializers.Serializer):
         device.is_active = True
         device.save()
         return device
+    
+class MapSerializer(serializers.Serializer):
+    user = serializers.SerializerMethodField()
+    device_id = serializers.CharField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    timestamp = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return {
+            "id": obj.assigned_user.id,
+            "name": f"{obj.assigned_user.first_name} {obj.assigned_user.last_name}"
+        }
+    
+    def get_latest_ping(self, device):
+        latest = device.location_pings.order_by('-ping_time').first()
+        if not latest:
+            raise serializers.ValidationError(f"Device {device.device_id} has no location pings")
+        return latest
+
+    def get_latitude(self, obj):
+        return self.get_latest_ping(obj).latitude
+
+    def get_longitude(self, obj):
+        return self.get_latest_ping(obj).longitude
+
+    def get_timestamp(self, obj):
+        return self.get_latest_ping(obj).ping_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    class Meta:
+        fields = ['user', 'device_id', 'latitude', 'longitude', 'timestamp']
