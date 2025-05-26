@@ -104,6 +104,13 @@ def user_danny():
     )
 
 @pytest.fixture
+def user_manny():
+    return User.objects.create(
+        first_name='Manny',
+        last_name='Goe'
+    )
+
+@pytest.fixture
 def inactive_device():
     return Device.objects.create(
         device_id='device_003'
@@ -116,7 +123,21 @@ def active_device(api_client, inactive_device, user_danny):
     }
     url = reverse('device-assign', args=[inactive_device.id])
     api_client.post(url, payload, format='json')
+    inactive_device.refresh_from_db()
     return inactive_device
+
+@pytest.fixture
+def active_device2(api_client, user_manny):
+    inactive_device2 = Device.objects.create(
+        device_id='device_004'
+    )
+    payload = {
+        'user_id': user_manny.id
+    }
+    url = reverse('device-assign', args=[inactive_device2.id])
+    api_client.post(url, payload, format='json')
+    inactive_device2.refresh_from_db()
+    return inactive_device2
 
 @pytest.mark.django_db
 class TestDeviceLocation:
@@ -167,6 +188,15 @@ def location_ping_2(active_device):
         ping_time="2025-04-22T10:20:00Z"
     )
 
+@pytest.fixture
+def location_ping_3(active_device2):
+    return LocationPing.objects.create(
+        device=active_device2,
+        latitude=50.123,
+        longitude=19.456,
+        ping_time="2025-04-22T10:15:00Z"
+    )
+
 @pytest.mark.django_db
 class TestMapView:
     def test_empty_map_with_no_devices(self, api_client):
@@ -190,5 +220,48 @@ class TestMapView:
             "longitude": 20.456,
             "timestamp": "2025-04-22T10:20:00Z"
         }
+    def test_map_filtered_by_user_id(
+            self, api_client, user_danny, user_manny, 
+            active_device, active_device2, location_ping_1, location_ping_3):
+        """Test filtering map view by user_id query param returns only matching user's device."""
+        url = reverse('map-view') + f'?user_id={user_danny.id}'
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]['user']['id'] == user_danny.id
+        assert response.data[0]['device_id'] == 'device_003'
 
+    def test_query_params_filter_by_device_id(
+            self, api_client, user_danny, user_manny, 
+            active_device, active_device2, location_ping_1, location_ping_3):
+        """Test filtering map view by device_id query param returns only that device."""
+        url = reverse('map-view') + '?device_id=device_003'
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]['device_id'] == 'device_003'
+        assert response.data[0]['user']['id'] == user_danny.id
     
+    def test_query_params_no_match_returns_empty(
+        self, api_client
+    ):
+        """Test filter with user_id or device_id that does not match any records returns empty list."""
+        url = reverse('map-view') + '?user_id=999&device_id=nonexistent_device'
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+@pytest.mark.django_db
+class TestDeviceUnassign:
+    def test_unassign_device_success(self, api_client, user_danny, active_device):
+        """Test for unassigning device from user and marking it inactive."""
+        assert active_device.assigned_user == user_danny
+        assert active_device.is_active == True
+        url = reverse('device-unassign', args=[active_device.id])
+        response = api_client.post(url)
+        assert response.status_code == 200
+        active_device.refresh_from_db()
+        assert active_device.assigned_user == None
+        assert active_device.is_active == False
