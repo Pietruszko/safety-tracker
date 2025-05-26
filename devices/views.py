@@ -30,16 +30,34 @@ class DeviceViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+    @action(detail=True, methods=['post'], url_path='unassign')
+    def unassign(self, request, pk=None):
+        device = self.get_object()
+        device.assigned_user = None
+        device.is_active = False
+        device.save()
+        
+        serializer = self.get_serializer(device)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 class MapView(generics.ListAPIView):
     serializer_class = MapSerializer
 
     def get_queryset(self):
-        active_devices = Device.objects.filter(
+        queryset = Device.objects.filter(
             is_active=True,
             assigned_user__isnull=False
         ).select_related('assigned_user')
+
+        user_id = self.request.query_params.get('user_id')
+        device_id = self.request.query_params.get('device_id')
+
+        if user_id:
+            queryset = queryset.filter(assigned_user__id=user_id)
+        if device_id:
+            queryset = queryset.filter(device_id=device_id)
         
-        return active_devices
+        return queryset
         
     
 
