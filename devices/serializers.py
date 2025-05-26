@@ -4,12 +4,17 @@ from users.models import User
 from django.shortcuts import get_object_or_404
 
 class DeviceSerializer(serializers.ModelSerializer):
+    assigned_user = serializers.SerializerMethodField()
+    def get_assigned_user(self, obj):
+        if obj.assigned_user is None:
+            return None
+        return {
+            "id": obj.assigned_user.id,
+            "name": f"{obj.assigned_user.first_name} {obj.assigned_user.last_name}"
+        }
     class Meta:
         model = Device
         fields = ['id', 'device_id', 'assigned_user', 'assigned_at', 'is_active']
-        extra_kwargs = {
-            'assigned_user': {'read_only': True}
-        }
 
 class LocationPingSerializer(serializers.ModelSerializer):
     class Meta:
